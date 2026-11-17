@@ -1,0 +1,101 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NEXT_PUBLIC_SITE_URL: https://reanimated.adnanradjam.com
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Assemble standalone bundle
+        run: |
+          if [ -d public ]; then cp -r public .next/standalone/public; fi
+          cp -r .next/static .next/standalone/.next/static
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: standalone
+          path: .next/standalone
+          include-hidden-files: true
+          retention-days: 7
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://reanimated.adnanradjam.com
+    env:
+      HOST: 103.193.179.175
+      SSH_USER: deploy
+      APP_DIR: /srv/reanimated
+      RELEASE: ${{ github.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: standalone
+          path: bundle
+
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "103.193.179.175 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICCJk852WuXpIqtebgEoalBwWIYRK9j45WN/3iLppAA8" > ~/.ssh/known_hosts
+
+      - name: Upload release
+        run: rsync -az --delete bundle/ "$SSH_USER@$HOST:$APP_DIR/releases/$RELEASE/"
+
+      - name: Activate release
+        run: |
+          ssh "$SSH_USER@$HOST" "APP_DIR=$APP_DIR RELEASE=$RELEASE bash -s" <<'EOF'
+          set -euo pipefail
+          cd "$APP_DIR"
+          previous=$(readlink current || true)
+          activate() { ln -sfn "$1" current.tmp && mv -T current.tmp current && sudo systemctl restart reanimated; }
+          healthy() {
+            for i in $(seq 1 20); do
+              curl -fsS -o /dev/null http://127.0.0.1:3001/ 2>/dev/null && return 0
+              sleep 1
+            done
+            return 1
+          }
+          activate "releases/$RELEASE"
+          if ! healthy; then
+            echo "::error::Health check failed for $RELEASE"
+            if [ -n "$previous" ]; then
+              echo "Rolling back to $previous"; activate "$previous"; healthy || true
+            fi
+            exit 1
+          fi
+          # keep the 5 newest releases
+          ls -1t releases | tail -n +6 | xargs -r -I{} rm -rf "releases/{}"
+          echo "Deployed $RELEASE"
+          EOF
