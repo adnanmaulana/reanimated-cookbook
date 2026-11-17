@@ -26,12 +26,12 @@ function Card({ a, eager }: { a: CardData; eager: boolean }) {
         <span className={`lv ${a.level}`}>{level.label}</span>
       </div>
       <p className="card-desc">{a.description}</p>
-      <div className="row" style={{ marginTop: "auto" }}>
+      <div className="row card-foot">
         <span className="cmd">/anim {a.id}</span>
         {a.source ? (
           <span className="src">{a.source}</span>
         ) : (
-          <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
+          <span className="mono card-tag" title={a.tag}>
             {a.tag}
           </span>
         )}
