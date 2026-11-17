@@ -171,9 +171,13 @@ code.inline { font-family: var(--f-mono); font-size: 0.86em; background: var(--m
 .cmd { font-family: var(--f-mono); font-size: 12.5px; background: var(--accent-soft); color: var(--cobalt-deep); padding: 2px 8px; border-radius: 6px; }
 .src { font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
 .src::before { content: ""; width: 14px; height: 10px; border-radius: 3px; background: #E5484D; flex: none; }
-/* Offscreen cards skip layout, paint and their looping preview animations until scrolled near */
-.grid > .card { content-visibility: auto; contain-intrinsic-size: auto 300px; }
-.more { display: flex; justify-content: center; padding: 28px 0 8px; }
+/* Lazy card previews: a soft placeholder until near the viewport, then the preview fades in */
+.stage-in { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.stage-in.fade-in { animation: stage-in .45s ease-out both; }
+@keyframes stage-in { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
+.stage.wait { background: linear-gradient(100deg, var(--stage) 40%, color-mix(in srgb, var(--stage) 70%, var(--card)) 50%, var(--stage) 60%) 0 0 / 300% 100%; animation: stage-wait 1.6s ease-in-out infinite; }
+@keyframes stage-wait { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.stage[data-paused] * { animation-play-state: paused !important; }
 .empty { padding: 56px 0; text-align: center; color: var(--ink-3); font-family: var(--f-mono); }
 
 /* detail */
@@ -228,6 +232,7 @@ code.inline { font-family: var(--f-mono); font-size: 0.86em; background: var(--m
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .stage *, .cursor { animation-play-state: paused !important; }
+  .stage.wait, .stage-in.fade-in { animation: none; }
   .card:hover { transform: none; }
   .stats-in { -webkit-mask-image: none; mask-image: none; }
   .stats-track { animation: none; width: auto; justify-content: center; }

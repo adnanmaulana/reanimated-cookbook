@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LEVELS } from "@/lib/meta";
 import type { CardData } from "@/lib/types";
-import { Demo } from "./Demo";
+import { LazyDemo } from "./Demo";
 
 type Filter = "all" | "basic" | "mid" | "adv";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -13,14 +13,14 @@ const FILTERS: { id: Filter; label: string }[] = [
 ];
 const isFilter = (v: string | null): v is Filter => FILTERS.some((f) => f.id === v);
 
-/** Cards rendered on first paint, then added per batch as the reader nears the end of the list */
-const BATCH = 12;
+/** Previews in the server HTML, so the first screen shows them before JavaScript loads */
+const EAGER = 6;
 
-function Card({ a }: { a: CardData }) {
+function Card({ a, eager }: { a: CardData; eager: boolean }) {
   const level = LEVELS.find((l) => l.id === a.level)!;
   return (
     <Link href={`/anim/${a.id}`} className="card" aria-label={`${a.name}, ${level.label}`}>
-      <Demo html={a.demo} label={a.name} />
+      <LazyDemo html={a.demo} label={a.name} eager={eager} />
       <div className="row">
         <span className="card-name">{a.name}</span>
         <span className={`lv ${a.level}`}>{level.label}</span>
@@ -43,8 +43,6 @@ function Card({ a }: { a: CardData }) {
 export function Catalog({ cards }: { cards: CardData[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
-  const [limit, setLimit] = useState(BATCH);
-  const sentinel = useRef<HTMLDivElement>(null);
 
   // Read ?f= and ?q= once on load so filters can be linked (e.g. /?f=adv#animations)
   useEffect(() => {
@@ -57,7 +55,6 @@ export function Catalog({ cards }: { cards: CardData[] }) {
 
   const choose = (f: Filter) => {
     setFilter(f);
-    setLimit(BATCH);
     const url = new URL(window.location.href);
     if (f === "all") url.searchParams.delete("f");
     else url.searchParams.set("f", f);
@@ -71,22 +68,8 @@ export function Catalog({ cards }: { cards: CardData[] }) {
     return cards.filter((a) => (filter === "all" || a.level === filter) && (!needle || a.hay.includes(needle)));
   }, [cards, filter, q]);
 
-  const shown = hits.slice(0, limit);
-  const more = hits.length > shown.length;
-
-  // Add the next batch when the sentinel comes within ~one screen of the viewport
-  useEffect(() => {
-    const el = sentinel.current;
-    if (!el || !more) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) setLimit((n) => n + BATCH);
-      },
-      { rootMargin: "800px 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [more, limit]);
+  // Index of each card in the list, so the first few on screen render their preview eagerly
+  const order = new Map(hits.map((a, i) => [a.id, i]));
 
   return (
     <>
@@ -104,10 +87,7 @@ export function Catalog({ cards }: { cards: CardData[] }) {
             id="search"
             type="search"
             value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setLimit(BATCH);
-            }}
+            onChange={(e) => setQ(e.target.value)}
             placeholder="spotify, gesture, scroll"
             aria-label="Search animations"
           />
@@ -118,20 +98,19 @@ export function Catalog({ cards }: { cards: CardData[] }) {
         <p className="empty">No match for “{q}”. Try spring, gesture or scroll.</p>
       ) : (
         LEVELS.map((l) => {
-          const group = shown.filter((a) => a.level === l.id);
+          const group = hits.filter((a) => a.level === l.id);
           if (!group.length) return null;
-          const total = hits.filter((a) => a.level === l.id).length;
           return (
             <section key={l.id} aria-labelledby={`g-${l.id}`}>
               <h3 className="group-h" id={`g-${l.id}`}>
                 {l.label}
                 <small>
-                  {total} {total === 1 ? "animation" : "animations"}
+                  {group.length} {group.length === 1 ? "animation" : "animations"}
                 </small>
               </h3>
               <div className="grid">
                 {group.map((a) => (
-                  <Card key={a.id} a={a} />
+                  <Card key={a.id} a={a} eager={order.get(a.id)! < EAGER} />
                 ))}
               </div>
             </section>
@@ -139,13 +118,6 @@ export function Catalog({ cards }: { cards: CardData[] }) {
         })
       )}
 
-      {more && (
-        <div ref={sentinel} className="more">
-          <button type="button" className="btn ghost" onClick={() => setLimit((n) => n + BATCH)}>
-            Show more · {hits.length - shown.length} left
-          </button>
-        </div>
-      )}
     </>
   );
 }
