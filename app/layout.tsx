@@ -1,13 +1,26 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { Analytics } from "@/components/Analytics";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const sans = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-sans", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-mono", display: "swap" });
+// Self-hosted variable fonts (latin subset), so builds don't depend on Google Fonts.
+const sans = localFont({
+  src: "./fonts/SpaceGrotesk-latin.woff2",
+  weight: "300 700",
+  variable: "--font-sans",
+  display: "swap",
+  fallback: ["system-ui", "sans-serif"],
+});
+const mono = localFont({
+  src: "./fonts/JetBrainsMono-latin.woff2",
+  weight: "100 800",
+  variable: "--font-mono",
+  display: "swap",
+  fallback: ["ui-monospace", "monospace"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
