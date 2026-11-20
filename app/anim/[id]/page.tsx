@@ -49,7 +49,7 @@ export default async function AnimationPage({ params }: Props) {
             <span className="cmd">/anim {a.id}</span>
           </div>
           <p className="desc">{a.description}</p>
-          <ReplayDemo html={a.demo} label={a.name} />
+          <ReplayDemo id={a.id} html={a.demo} label={a.name} />
           {a.source && (
             <div className="inspired">
               <span className="src">Inspired by {a.source.app}</span>

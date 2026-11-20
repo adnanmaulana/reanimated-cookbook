@@ -7,6 +7,8 @@ type Props = {
   label: string;
   className?: string;
   copiedLabel?: string;
+  /** data-track attributes for analytics, from trackAttrs(). */
+  tracking?: Record<string, string>;
 };
 
 async function writeClipboard(text: string) {
@@ -33,7 +35,7 @@ async function writeClipboard(text: string) {
   }
 }
 
-export function CopyButton({ text, label, className = "btn ghost", copiedLabel = "Copied" }: Props) {
+export function CopyButton({ text, label, className = "btn ghost", copiedLabel = "Copied", tracking }: Props) {
   const [state, setState] = useState<"idle" | "ok" | "fail">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -49,7 +51,7 @@ export function CopyButton({ text, label, className = "btn ghost", copiedLabel =
   };
 
   return (
-    <button type="button" className={className} onClick={onClick} aria-live="polite">
+    <button type="button" className={className} onClick={onClick} aria-live="polite" {...tracking}>
       {state === "ok" ? `${copiedLabel} ✓` : state === "fail" ? "Couldn't copy" : label}
     </button>
   );

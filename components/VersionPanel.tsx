@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { isVersion, VERSIONS } from "@/lib/meta";
 import type { Version, VersionEntry } from "@/lib/types";
+import { trackAttrs } from "@/lib/analytics";
 import { CopyButton } from "./CopyButton";
 
 const KEY = "rc-version";
@@ -48,6 +49,7 @@ export function VersionPanel({ id, entries }: { id: string; entries: Record<Vers
               aria-selected={version === v.id}
               aria-controls="code-panel"
               onClick={() => choose(v.id)}
+              {...trackAttrs("version_switch", { anim: id, version: v.id })}
             >
               {v.label}
               {v.id === "v4" && <span className="seg-tag">main</span>}
@@ -69,9 +71,25 @@ export function VersionPanel({ id, entries }: { id: string; entries: Record<Vers
       </div>
 
       <div className="actions">
-        <CopyButton key={`cmd-${version}`} text={command} label={`Copy ${command}`} className="btn" />
-        <CopyButton key={`prompt-${version}`} text={prompt} label="Copy full prompt" />
-        <CopyButton key={`code-${version}`} text={code} label="Copy code" />
+        <CopyButton
+          key={`cmd-${version}`}
+          text={command}
+          label={`Copy ${command}`}
+          className="btn"
+          tracking={trackAttrs("copy_command", { anim: id, version })}
+        />
+        <CopyButton
+          key={`prompt-${version}`}
+          text={prompt}
+          label="Copy full prompt"
+          tracking={trackAttrs("copy_prompt", { anim: id, version })}
+        />
+        <CopyButton
+          key={`code-${version}`}
+          text={code}
+          label="Copy code"
+          tracking={trackAttrs("copy_code", { anim: id, version })}
+        />
       </div>
 
       <div className="term" id="code-panel" role="tabpanel" aria-labelledby={`tab-${version}`}>

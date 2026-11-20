@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { track, trackAttrs } from "@/lib/analytics";
 import { LEVELS } from "@/lib/meta";
 import type { CardData } from "@/lib/types";
 import { LazyDemo } from "./Demo";
@@ -68,6 +69,15 @@ export function Catalog({ cards }: { cards: CardData[] }) {
     return cards.filter((a) => (filter === "all" || a.level === filter) && (!needle || a.hay.includes(needle)));
   }, [cards, filter, q]);
 
+  // Report what people search for (debounced, so only settled queries are sent).
+  const resultCount = hits.length;
+  useEffect(() => {
+    const query = q.trim().toLowerCase();
+    if (query.length < 2) return;
+    const timer = setTimeout(() => track("search", { query, results: resultCount }), 1500);
+    return () => clearTimeout(timer);
+  }, [q, resultCount]);
+
   // Index of each card in the list, so the first few on screen render their preview eagerly
   const order = new Map(hits.map((a, i) => [a.id, i]));
 
@@ -76,7 +86,14 @@ export function Catalog({ cards }: { cards: CardData[] }) {
       <div className="toolbar">
         <div className="chips" role="group" aria-label="Filter animations">
           {FILTERS.map((f) => (
-            <button key={f.id} type="button" className="chip" aria-pressed={filter === f.id} onClick={() => choose(f.id)}>
+            <button
+              key={f.id}
+              type="button"
+              className="chip"
+              aria-pressed={filter === f.id}
+              onClick={() => choose(f.id)}
+              {...trackAttrs("filter", { level: f.id })}
+            >
               {f.label} · {count(f.id)}
             </button>
           ))}
