@@ -12,8 +12,8 @@ concurrency:
 
 env:
   NEXT_PUBLIC_SITE_URL: https://reanimated.adnanradjam.com
-  # Stats server (monitoring-tools). Set the ANALYTICS_URL repo variable to turn tracking on.
-  NEXT_PUBLIC_ANALYTICS_URL: ${{ vars.ANALYTICS_URL }}
+  # Stats server (monitoring-tools). The ANALYTICS_URL repo variable overrides the default.
+  NEXT_PUBLIC_ANALYTICS_URL: ${{ vars.ANALYTICS_URL || 'https://tracker.adnanradjam.com' }}
 
 jobs:
   build:
